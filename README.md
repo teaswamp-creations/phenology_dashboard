@@ -12,14 +12,14 @@ Explore the data! [https://harrig12.shinyapps.io/garden_dashboard/](https://harr
 - Flowering timeline tracking active flowering and fruiting stages
 - Summary statistics including total observations, unique species, and pollinator activity
 
-![](overview.png)
+<img src="static/overview.png" height="200"/>
 
 ### 👯 Plant Families Tab
 - Family distribution visualization with interactive pie charts
 - Species count per plant family analysis
 - Location-based plant family heatmap showing species diversity
-
-![](families.png)
+  
+<img src="static/families.png" height="300"/>
 
 ### 🌸 Phenology Tab
 - Flowering stage progression tracking
@@ -27,20 +27,18 @@ Explore the data! [https://harrig12.shinyapps.io/garden_dashboard/](https://harr
 - Leaf development stage monitoring
 - Species flowering grid with animated monthly progression (up to 136 species)
 
-![](phenology_1.png)
-
-![](phenology_2.gif)
+<img src="static/phenology_1.png" height="300"/>
 
 ### 🐝 Pollinators Tab
 - Sankey flow diagram showing pollinator-plant relationships
 - Location-based pollinator activity heatmaps
 - Pollinator diversity analysis
 
-![](pollinators.png)
+<img src="static/pollinators.png" height="100"/>
 
 ### 📆 Observations Tab
 - Searchable and filterable observation timeline
 - Export functionality for filtered data
 - Detailed plant information with visual stage indicators
 
-![](table.png)
+<img src="static/table.png" height="100"/>
