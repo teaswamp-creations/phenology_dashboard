@@ -497,7 +497,7 @@ server <- function(input, output, session) {
   output$flowering_plants <- renderText({
     garden_data %>%
       filter(Flowering %in% c("First flowers", ">50% flowering")) %>%
-      pull(Flowering) %>%
+      pull(Plant) %>%
       unique() %>%
       length()
   })
