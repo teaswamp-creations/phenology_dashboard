@@ -34,11 +34,11 @@ Explore the data! [https://harrig12.shinyapps.io/garden_dashboard/](https://harr
 - Location-based pollinator activity heatmaps
 - Pollinator diversity analysis
 
-<img src="static/pollinators.png" height="100"/>
+<img src="static/pollinators.png" height="200"/>
 
 ### 📆 Observations Tab
 - Searchable and filterable observation timeline
 - Export functionality for filtered data
 - Detailed plant information with visual stage indicators
 
-<img src="static/table.png" height="100"/>
+<img src="static/table.png" height="200"/>
