@@ -32,7 +32,9 @@ if (file.exists('garden_data.csv')) {
 garden_data = read_csv('garden_data.csv') %>%
     mutate(
       Date = as.Date(Timestamp),
-      Time = format(Timestamp, "%H:%M:%S")
+      Time = format(Timestamp, "%H:%M:%S"),
+      Flowering = ordered(Flowering, levels = c("Flower buds", "First flowers", ">50% flowering", "Finished flowering", "Onset seed/fruit", ">50% ripe", "nothing")),
+      Vegetative = ordered(Vegetative, levels = c("signs of life", "young leaves", "leaves changing colour", ">50% fallen", "nothing"))
     )
 
 # Color match helper and palettes
@@ -68,32 +70,6 @@ get_flowering_color <- function(stage) {
 
 get_vegetative_color <- function(stage) {
   first_pattern_match(stage, names(vegetative_palette), unname(vegetative_palette))
-}
-
-# Helper function to get flowering stage priority for ordering
-get_flowering_priority <- function(stage) {
-  case_when(
-    grepl("Flower buds", stage) ~ 1,
-    grepl("First flowers", stage) ~ 2,
-    grepl(">50% flowering", stage) ~ 3,
-    grepl("Finished flowering", stage) ~ 4,
-    grepl("Onset seed/fruit", stage) ~ 5,
-    grepl(">50% ripe", stage) ~ 6,
-    stage == "nothing" ~ 7,
-    TRUE ~ 8
-  )
-}
-
-# Helper function to get leaf stage priority for ordering
-get_leaf_priority <- function(stage) {
-  case_when(
-    grepl("signs of life", stage) ~ 1,
-    grepl("young leaves", stage) ~ 2,
-    grepl("leaves changing colour", stage) ~ 3,
-    grepl(">50% fallen", stage) ~ 4,
-    stage == "nothing" ~ 5,
-    TRUE ~ 6
-  )
 }
 
 # Helper function to get month name
@@ -418,6 +394,14 @@ ui <- fluidPage(
       # Phenology tab
       conditionalPanel(
         condition = "input.main_tabs == 'phenology'",
+        div(class = "row mt-4",
+          div(class = "col-12",
+            div(class = "card",
+              div(class = "card-header", h4("🌼 Species Flowering Grid by Month")),
+              div(class = "card-body", plotlyOutput("species_bubble_grid", height = "1000px"))
+            )
+          )
+        ),
         div(class = "row",
           div(class = "col-md-6",
             div(class = "card",
@@ -446,14 +430,6 @@ ui <- fluidPage(
             )
           )
         ),
-        div(class = "row mt-4",
-          div(class = "col-12",
-            div(class = "card",
-              div(class = "card-header", h4("🌼 Species Flowering Grid by Month")),
-              div(class = "card-body", plotlyOutput("species_bubble_grid", height = "1000px"))
-            )
-          )
-        )
       ),
       
       # Pollinators tab
@@ -736,11 +712,8 @@ server <- function(input, output, session) {
   output$phenology_chart <- renderPlotly({
     stage_data <- garden_data %>%
       filter(Flowering != "nothing") %>%
-      mutate(priority = get_flowering_priority(Flowering)) %>%
-      count(Flowering, priority) %>%
-      arrange(priority) %>%
-      mutate(Flowering = factor(Flowering, levels = Flowering))
-    
+      count(Flowering)
+
     p <- ggplot(stage_data, aes(x = Flowering, y = n, fill = Flowering)) +
       geom_bar(stat = "identity") +
       coord_flip() +
@@ -782,9 +755,7 @@ server <- function(input, output, session) {
       group_by(month_start, month_label) %>%
       mutate(percentage = n / sum(n) * 100) %>%
       ungroup() %>%
-      mutate(priority = get_flowering_priority(Flowering)) %>%
-      arrange(month_start, priority) %>%
-      mutate(Flowering = factor(Flowering, levels = unique(Flowering[order(priority)])))
+      arrange(month_start, Flowering)
     
     p <- ggplot(flower_data, aes(x = month_start, y = percentage, fill = Flowering, text = paste0("Month: ", month_label, "<br>Stage: ", Flowering, "<br>Percentage: ", round(percentage, 1), "%"))) +
       geom_bar(stat = "identity", position = "stack") +
@@ -814,9 +785,7 @@ server <- function(input, output, session) {
       group_by(month_start, month_label) %>%
       mutate(percentage = n / sum(n) * 100) %>%
       ungroup() %>%
-      mutate(priority = get_leaf_priority(Vegetative)) %>%
-      arrange(month_start, priority) %>%
-      mutate(Vegetative = factor(Vegetative, levels = unique(Vegetative[order(priority)])))
+      arrange(month_start, Vegetative)
     
     p <- ggplot(leaf_data, aes(x = month_start, y = percentage, fill = Vegetative, text = paste0("Month: ", month_label, "<br>Stage: ", Vegetative, "<br>Percentage: ", round(percentage, 1), "%"))) +
       geom_bar(stat = "identity", position = "stack") +
@@ -834,17 +803,19 @@ server <- function(input, output, session) {
   })
 
   # Species bubble grid by month
-  output$species_bubble_grid <- renderPlotly({
-    if (nrow(garden_data) == 0) return(plotly_empty())
+output$species_bubble_grid <- renderPlotly({
+  if (nrow(garden_data) == 0) return(plotly_empty())
 
     monthly_flower <- garden_data %>%
       filter(!is.na(Plant), nzchar(Plant), !is.na(Date)) %>%
       mutate(Month = format(Date, "%m-%Y")) %>%
+      filter(Flowering != "nothing") %>%
       group_by(Month, Plant, Flowering) %>%
       summarise(n_flower = n(), .groups = 'drop') %>%
       group_by(Month, Plant) %>%
       slice_max(n_flower, n = 1, with_ties = FALSE) %>%
       ungroup()
+
 
     monthly_leaf <- garden_data %>%
       filter(!is.na(Plant), nzchar(Plant), !is.na(Date)) %>%
@@ -955,6 +926,107 @@ server <- function(input, output, session) {
       )
 
     p
+  })
+
+output$species_bubble_grid <- renderPlotly({
+    if (nrow(garden_data) == 0) return(plotly_empty())
+
+    monthly_flower <- garden_data %>%
+      filter(!is.na(Plant), nzchar(Plant), !is.na(Date)) %>%
+      mutate(
+        Month = format(Date, "%m-%Y"),
+        flower_size = case_when(
+          Flowering == "Flower buds" ~ 5,
+          Flowering == "First flowers" ~ 8,
+          Flowering == ">50% flowering" ~ 10,
+          Flowering == "Finished flowering" ~ 2,
+          Flowering == "Onset seed/fruit" ~ 5,
+          Flowering == ">50% ripe " ~ 10,
+          Flowering == "nothing" ~ 0,
+          TRUE ~ 0
+        ),
+        leaf_size = flower_size + 5 + 
+          case_when(
+            Vegetative == "signs of life" ~ 5,
+            Vegetative == "young leaves" ~ 10,
+            Vegetative == "leaves changing colour" ~ 10,
+            Vegetative == ">50% fallen" ~ 5,
+            Vegetative == "nothing" ~ 0,
+            TRUE ~ 0
+          )
+      ) %>%
+      group_by(Date, Plant, Flowering, Vegetative) %>%
+      mutate(
+        flower_size = sum(flower_size),
+        leaf_size = sum(leaf_size),
+        n= n(), .groups = 'drop'
+      ) %>%
+      group_by(Date, Plant) %>%
+      arrange(n) %>%
+      summarise(
+        flower_size = sum(flower_size),
+        leaf_size = sum(leaf_size),
+        n= sum(n()), .groups = 'drop',
+        Flowering = first(Flowering),
+        Vegetative = first(Vegetative)
+      )
+    
+    species_index <- garden_data %>%
+      filter(!is.na(Plant), nzchar(Plant)) %>%
+      group_by(Plant) %>%
+      arrange(desc(n())) %>%
+      distinct(Plant) %>%
+      slice(1:136) %>%
+      pull(Plant)
+
+    base_grid <- tidyr::expand_grid(
+      Date = unique(monthly_flower$Date), 
+      Plant = unique(species_index)) 
+
+    flower_data <- base_grid %>%
+      left_join(monthly_flower, by = c("Date", "Plant")) %>%
+      arrange(Date, Plant) %>%
+      mutate(
+        species_index = match(Plant, species_index),
+        x = ((species_index - 1) %% 6) + 1,
+        y = ((species_index - 1) %/% 6) + 1,
+        flower_colour = ifelse(is.na(Flowering), "rgba(0,0,0,0)", get_flowering_color(Flowering)),
+        leaf_colour = ifelse(is.na(Vegetative), "rgba(0,0,0,0)", get_vegetative_color(Vegetative)),
+        hover_text = paste0(
+          '<b>', Plant, '</b><br>',
+          'Flower: ', Flowering, '<br>',
+          'Vegetation: ', Vegetative, '<br>',
+          'N: ', ifelse(is.na(n), 0, n), '<br>'
+        ),
+        Date = format(Date, "%Y-%m-%d")
+      ) 
+
+    p <- plot_ly(
+      data = flower_data,
+      x = ~x, y = ~y, frame = ~Date, type = 'scatter', mode = 'markers', alpha = 0.5,
+      marker = list(size = ~leaf_size, sizemode = 'area', sizeref = 0.01, color = ~leaf_colour, line = list(width = 0)),
+      hovertext = ~hover_text,
+      hoverinfo = 'text'
+    ) %>%
+    add_trace(
+      data = flower_data, x = ~x, y = ~y, frame = ~Date, type = 'scatter', mode = 'markers+text', alpha = 0.5,
+      marker = list(size = ~flower_size, sizemode = 'area', sizeref = 0.01, color = ~flower_colour, line = list(width = 0)),
+        text = ~Plant,
+        textposition = 'middle center',
+        hovertext = ~hover_text,
+        hoverinfo = 'text',
+        inherit = FALSE
+      ) %>%
+      layout(
+        xaxis = list(title = "", tickmode = 'array', tickvals = 1:6, range = c(0.5, 6.5), showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE, showline = FALSE),
+        yaxis = list(title = "", tickmode = 'array', tickvals = 1:25, range = c(0.5, 25.5), showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE, showline = FALSE),
+        showlegend = FALSE
+      )
+
+    p
+
+
+
   })
   
   # Sankey plot for pollinators
