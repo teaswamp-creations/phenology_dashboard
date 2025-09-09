@@ -2,7 +2,7 @@
 # install.packages(c("shiny", "DT", "ggplot2", "plotly", "dplyr", "lubridate", "scales", "readr", "networkD3"))
 
 # run the app with 
-#   
+#  library(shiny); runApp('app.r')
 
 
 library(shiny)
@@ -839,7 +839,7 @@ server <- function(input, output, session) {
 
     monthly_flower <- garden_data %>%
       filter(!is.na(Plant), nzchar(Plant), !is.na(Date)) %>%
-      mutate(Month = paste(month(Date, label = TRUE), year(Date))) %>%
+      mutate(Month = format(Date, "%m-%Y")) %>%
       group_by(Month, Plant, Flowering) %>%
       summarise(n_flower = n(), .groups = 'drop') %>%
       group_by(Month, Plant) %>%
@@ -848,7 +848,7 @@ server <- function(input, output, session) {
 
     monthly_leaf <- garden_data %>%
       filter(!is.na(Plant), nzchar(Plant), !is.na(Date)) %>%
-      mutate(Month = paste(month(Date, label = TRUE), year(Date))) %>%
+      mutate(Month = format(Date, "%m-%Y")) %>%
       filter(Vegetative != "nothing") %>%
       group_by(Month, Plant, Vegetative) %>%
       summarise(n_leaf = n(), .groups = 'drop') %>%
